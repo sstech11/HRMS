@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { GeneralLedger } from "./GeneralLedger";
 import { GeneralLedgerCountArgs } from "./GeneralLedgerCountArgs";
 import { GeneralLedgerFindManyArgs } from "./GeneralLedgerFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateGeneralLedgerArgs } from "./CreateGeneralLedgerArgs";
 import { UpdateGeneralLedgerArgs } from "./UpdateGeneralLedgerArgs";
 import { DeleteGeneralLedgerArgs } from "./DeleteGeneralLedgerArgs";
 import { GeneralLedgerService } from "../generalLedger.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => GeneralLedger)
 export class GeneralLedgerResolverBase {
-  constructor(protected readonly service: GeneralLedgerService) {}
+  constructor(
+    protected readonly service: GeneralLedgerService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "GeneralLedger",
+    action: "read",
+    possession: "any",
+  })
   async _generalLedgersMeta(
     @graphql.Args() args: GeneralLedgerCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class GeneralLedgerResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [GeneralLedger])
+  @nestAccessControl.UseRoles({
+    resource: "GeneralLedger",
+    action: "read",
+    possession: "any",
+  })
   async generalLedgers(
     @graphql.Args() args: GeneralLedgerFindManyArgs
   ): Promise<GeneralLedger[]> {
     return this.service.generalLedgers(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => GeneralLedger, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "GeneralLedger",
+    action: "read",
+    possession: "own",
+  })
   async generalLedger(
     @graphql.Args() args: GeneralLedgerFindUniqueArgs
   ): Promise<GeneralLedger | null> {
@@ -52,7 +80,13 @@ export class GeneralLedgerResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => GeneralLedger)
+  @nestAccessControl.UseRoles({
+    resource: "GeneralLedger",
+    action: "create",
+    possession: "any",
+  })
   async createGeneralLedger(
     @graphql.Args() args: CreateGeneralLedgerArgs
   ): Promise<GeneralLedger> {
@@ -62,7 +96,13 @@ export class GeneralLedgerResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => GeneralLedger)
+  @nestAccessControl.UseRoles({
+    resource: "GeneralLedger",
+    action: "update",
+    possession: "any",
+  })
   async updateGeneralLedger(
     @graphql.Args() args: UpdateGeneralLedgerArgs
   ): Promise<GeneralLedger | null> {
@@ -82,6 +122,11 @@ export class GeneralLedgerResolverBase {
   }
 
   @graphql.Mutation(() => GeneralLedger)
+  @nestAccessControl.UseRoles({
+    resource: "GeneralLedger",
+    action: "delete",
+    possession: "any",
+  })
   async deleteGeneralLedger(
     @graphql.Args() args: DeleteGeneralLedgerArgs
   ): Promise<GeneralLedger | null> {

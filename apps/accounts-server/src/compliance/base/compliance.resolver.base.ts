@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Compliance } from "./Compliance";
 import { ComplianceCountArgs } from "./ComplianceCountArgs";
 import { ComplianceFindManyArgs } from "./ComplianceFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateComplianceArgs } from "./CreateComplianceArgs";
 import { UpdateComplianceArgs } from "./UpdateComplianceArgs";
 import { DeleteComplianceArgs } from "./DeleteComplianceArgs";
 import { ComplianceService } from "../compliance.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Compliance)
 export class ComplianceResolverBase {
-  constructor(protected readonly service: ComplianceService) {}
+  constructor(
+    protected readonly service: ComplianceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "read",
+    possession: "any",
+  })
   async _compliancesMeta(
     @graphql.Args() args: ComplianceCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class ComplianceResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Compliance])
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "read",
+    possession: "any",
+  })
   async compliances(
     @graphql.Args() args: ComplianceFindManyArgs
   ): Promise<Compliance[]> {
     return this.service.compliances(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Compliance, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "read",
+    possession: "own",
+  })
   async compliance(
     @graphql.Args() args: ComplianceFindUniqueArgs
   ): Promise<Compliance | null> {
@@ -52,7 +80,13 @@ export class ComplianceResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Compliance)
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "create",
+    possession: "any",
+  })
   async createCompliance(
     @graphql.Args() args: CreateComplianceArgs
   ): Promise<Compliance> {
@@ -62,7 +96,13 @@ export class ComplianceResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Compliance)
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "update",
+    possession: "any",
+  })
   async updateCompliance(
     @graphql.Args() args: UpdateComplianceArgs
   ): Promise<Compliance | null> {
@@ -82,6 +122,11 @@ export class ComplianceResolverBase {
   }
 
   @graphql.Mutation(() => Compliance)
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "delete",
+    possession: "any",
+  })
   async deleteCompliance(
     @graphql.Args() args: DeleteComplianceArgs
   ): Promise<Compliance | null> {

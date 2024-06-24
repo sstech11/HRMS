@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { AccountsReceivable } from "./AccountsReceivable";
 import { AccountsReceivableCountArgs } from "./AccountsReceivableCountArgs";
 import { AccountsReceivableFindManyArgs } from "./AccountsReceivableFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateAccountsReceivableArgs } from "./CreateAccountsReceivableArgs";
 import { UpdateAccountsReceivableArgs } from "./UpdateAccountsReceivableArgs";
 import { DeleteAccountsReceivableArgs } from "./DeleteAccountsReceivableArgs";
 import { AccountsReceivableService } from "../accountsReceivable.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => AccountsReceivable)
 export class AccountsReceivableResolverBase {
-  constructor(protected readonly service: AccountsReceivableService) {}
+  constructor(
+    protected readonly service: AccountsReceivableService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "read",
+    possession: "any",
+  })
   async _accountsReceivablesMeta(
     @graphql.Args() args: AccountsReceivableCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class AccountsReceivableResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [AccountsReceivable])
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "read",
+    possession: "any",
+  })
   async accountsReceivables(
     @graphql.Args() args: AccountsReceivableFindManyArgs
   ): Promise<AccountsReceivable[]> {
     return this.service.accountsReceivables(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => AccountsReceivable, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "read",
+    possession: "own",
+  })
   async accountsReceivable(
     @graphql.Args() args: AccountsReceivableFindUniqueArgs
   ): Promise<AccountsReceivable | null> {
@@ -52,7 +80,13 @@ export class AccountsReceivableResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => AccountsReceivable)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "create",
+    possession: "any",
+  })
   async createAccountsReceivable(
     @graphql.Args() args: CreateAccountsReceivableArgs
   ): Promise<AccountsReceivable> {
@@ -62,7 +96,13 @@ export class AccountsReceivableResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => AccountsReceivable)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "update",
+    possession: "any",
+  })
   async updateAccountsReceivable(
     @graphql.Args() args: UpdateAccountsReceivableArgs
   ): Promise<AccountsReceivable | null> {
@@ -82,6 +122,11 @@ export class AccountsReceivableResolverBase {
   }
 
   @graphql.Mutation(() => AccountsReceivable)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "delete",
+    possession: "any",
+  })
   async deleteAccountsReceivable(
     @graphql.Args() args: DeleteAccountsReceivableArgs
   ): Promise<AccountsReceivable | null> {

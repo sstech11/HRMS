@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Inventory } from "./Inventory";
 import { InventoryCountArgs } from "./InventoryCountArgs";
 import { InventoryFindManyArgs } from "./InventoryFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateInventoryArgs } from "./CreateInventoryArgs";
 import { UpdateInventoryArgs } from "./UpdateInventoryArgs";
 import { DeleteInventoryArgs } from "./DeleteInventoryArgs";
 import { InventoryService } from "../inventory.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Inventory)
 export class InventoryResolverBase {
-  constructor(protected readonly service: InventoryService) {}
+  constructor(
+    protected readonly service: InventoryService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Inventory",
+    action: "read",
+    possession: "any",
+  })
   async _inventoriesMeta(
     @graphql.Args() args: InventoryCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class InventoryResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Inventory])
+  @nestAccessControl.UseRoles({
+    resource: "Inventory",
+    action: "read",
+    possession: "any",
+  })
   async inventories(
     @graphql.Args() args: InventoryFindManyArgs
   ): Promise<Inventory[]> {
     return this.service.inventories(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Inventory, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Inventory",
+    action: "read",
+    possession: "own",
+  })
   async inventory(
     @graphql.Args() args: InventoryFindUniqueArgs
   ): Promise<Inventory | null> {
@@ -52,7 +80,13 @@ export class InventoryResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Inventory)
+  @nestAccessControl.UseRoles({
+    resource: "Inventory",
+    action: "create",
+    possession: "any",
+  })
   async createInventory(
     @graphql.Args() args: CreateInventoryArgs
   ): Promise<Inventory> {
@@ -62,7 +96,13 @@ export class InventoryResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Inventory)
+  @nestAccessControl.UseRoles({
+    resource: "Inventory",
+    action: "update",
+    possession: "any",
+  })
   async updateInventory(
     @graphql.Args() args: UpdateInventoryArgs
   ): Promise<Inventory | null> {
@@ -82,6 +122,11 @@ export class InventoryResolverBase {
   }
 
   @graphql.Mutation(() => Inventory)
+  @nestAccessControl.UseRoles({
+    resource: "Inventory",
+    action: "delete",
+    possession: "any",
+  })
   async deleteInventory(
     @graphql.Args() args: DeleteInventoryArgs
   ): Promise<Inventory | null> {

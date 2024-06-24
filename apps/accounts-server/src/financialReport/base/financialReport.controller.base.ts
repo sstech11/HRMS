@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { FinancialReportService } from "../financialReport.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { FinancialReportCreateInput } from "./FinancialReportCreateInput";
 import { FinancialReport } from "./FinancialReport";
 import { FinancialReportFindManyArgs } from "./FinancialReportFindManyArgs";
 import { FinancialReportWhereUniqueInput } from "./FinancialReportWhereUniqueInput";
 import { FinancialReportUpdateInput } from "./FinancialReportUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class FinancialReportControllerBase {
-  constructor(protected readonly service: FinancialReportService) {}
+  constructor(
+    protected readonly service: FinancialReportService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: FinancialReport })
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: FinancialReportCreateInput,
+  })
   async createFinancialReport(
     @common.Body() data: FinancialReportCreateInput
   ): Promise<FinancialReport> {
@@ -43,9 +64,18 @@ export class FinancialReportControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [FinancialReport] })
   @ApiNestedQuery(FinancialReportFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async financialReports(
     @common.Req() request: Request
   ): Promise<FinancialReport[]> {
@@ -63,9 +93,18 @@ export class FinancialReportControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: FinancialReport })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async financialReport(
     @common.Param() params: FinancialReportWhereUniqueInput
   ): Promise<FinancialReport | null> {
@@ -88,9 +127,21 @@ export class FinancialReportControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: FinancialReport })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: FinancialReportUpdateInput,
+  })
   async updateFinancialReport(
     @common.Param() params: FinancialReportWhereUniqueInput,
     @common.Body() data: FinancialReportUpdateInput
@@ -121,6 +172,14 @@ export class FinancialReportControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: FinancialReport })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteFinancialReport(
     @common.Param() params: FinancialReportWhereUniqueInput
   ): Promise<FinancialReport | null> {

@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { ComplianceService } from "../compliance.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { ComplianceCreateInput } from "./ComplianceCreateInput";
 import { Compliance } from "./Compliance";
 import { ComplianceFindManyArgs } from "./ComplianceFindManyArgs";
 import { ComplianceWhereUniqueInput } from "./ComplianceWhereUniqueInput";
 import { ComplianceUpdateInput } from "./ComplianceUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class ComplianceControllerBase {
-  constructor(protected readonly service: ComplianceService) {}
+  constructor(
+    protected readonly service: ComplianceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Compliance })
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: ComplianceCreateInput,
+  })
   async createCompliance(
     @common.Body() data: ComplianceCreateInput
   ): Promise<Compliance> {
@@ -43,9 +64,18 @@ export class ComplianceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Compliance] })
   @ApiNestedQuery(ComplianceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async compliances(@common.Req() request: Request): Promise<Compliance[]> {
     const args = plainToClass(ComplianceFindManyArgs, request.query);
     return this.service.compliances({
@@ -61,9 +91,18 @@ export class ComplianceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Compliance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async compliance(
     @common.Param() params: ComplianceWhereUniqueInput
   ): Promise<Compliance | null> {
@@ -86,9 +125,21 @@ export class ComplianceControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Compliance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: ComplianceUpdateInput,
+  })
   async updateCompliance(
     @common.Param() params: ComplianceWhereUniqueInput,
     @common.Body() data: ComplianceUpdateInput
@@ -119,6 +170,14 @@ export class ComplianceControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Compliance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Compliance",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteCompliance(
     @common.Param() params: ComplianceWhereUniqueInput
   ): Promise<Compliance | null> {

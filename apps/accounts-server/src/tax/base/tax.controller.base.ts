@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { TaxService } from "../tax.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { TaxCreateInput } from "./TaxCreateInput";
 import { Tax } from "./Tax";
 import { TaxFindManyArgs } from "./TaxFindManyArgs";
 import { TaxWhereUniqueInput } from "./TaxWhereUniqueInput";
 import { TaxUpdateInput } from "./TaxUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class TaxControllerBase {
-  constructor(protected readonly service: TaxService) {}
+  constructor(
+    protected readonly service: TaxService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Tax })
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: TaxCreateInput,
+  })
   async createTax(@common.Body() data: TaxCreateInput): Promise<Tax> {
     return await this.service.createTax({
       data: data,
@@ -41,9 +62,18 @@ export class TaxControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Tax] })
   @ApiNestedQuery(TaxFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async taxes(@common.Req() request: Request): Promise<Tax[]> {
     const args = plainToClass(TaxFindManyArgs, request.query);
     return this.service.taxes({
@@ -59,9 +89,18 @@ export class TaxControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Tax })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async tax(@common.Param() params: TaxWhereUniqueInput): Promise<Tax | null> {
     const result = await this.service.tax({
       where: params,
@@ -82,9 +121,21 @@ export class TaxControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Tax })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: TaxUpdateInput,
+  })
   async updateTax(
     @common.Param() params: TaxWhereUniqueInput,
     @common.Body() data: TaxUpdateInput
@@ -115,6 +166,14 @@ export class TaxControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Tax })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteTax(
     @common.Param() params: TaxWhereUniqueInput
   ): Promise<Tax | null> {

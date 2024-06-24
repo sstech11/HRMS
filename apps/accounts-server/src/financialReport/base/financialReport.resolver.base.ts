@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { FinancialReport } from "./FinancialReport";
 import { FinancialReportCountArgs } from "./FinancialReportCountArgs";
 import { FinancialReportFindManyArgs } from "./FinancialReportFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateFinancialReportArgs } from "./CreateFinancialReportArgs";
 import { UpdateFinancialReportArgs } from "./UpdateFinancialReportArgs";
 import { DeleteFinancialReportArgs } from "./DeleteFinancialReportArgs";
 import { FinancialReportService } from "../financialReport.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => FinancialReport)
 export class FinancialReportResolverBase {
-  constructor(protected readonly service: FinancialReportService) {}
+  constructor(
+    protected readonly service: FinancialReportService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "read",
+    possession: "any",
+  })
   async _financialReportsMeta(
     @graphql.Args() args: FinancialReportCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class FinancialReportResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [FinancialReport])
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "read",
+    possession: "any",
+  })
   async financialReports(
     @graphql.Args() args: FinancialReportFindManyArgs
   ): Promise<FinancialReport[]> {
     return this.service.financialReports(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => FinancialReport, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "read",
+    possession: "own",
+  })
   async financialReport(
     @graphql.Args() args: FinancialReportFindUniqueArgs
   ): Promise<FinancialReport | null> {
@@ -52,7 +80,13 @@ export class FinancialReportResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => FinancialReport)
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "create",
+    possession: "any",
+  })
   async createFinancialReport(
     @graphql.Args() args: CreateFinancialReportArgs
   ): Promise<FinancialReport> {
@@ -62,7 +96,13 @@ export class FinancialReportResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => FinancialReport)
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "update",
+    possession: "any",
+  })
   async updateFinancialReport(
     @graphql.Args() args: UpdateFinancialReportArgs
   ): Promise<FinancialReport | null> {
@@ -82,6 +122,11 @@ export class FinancialReportResolverBase {
   }
 
   @graphql.Mutation(() => FinancialReport)
+  @nestAccessControl.UseRoles({
+    resource: "FinancialReport",
+    action: "delete",
+    possession: "any",
+  })
   async deleteFinancialReport(
     @graphql.Args() args: DeleteFinancialReportArgs
   ): Promise<FinancialReport | null> {

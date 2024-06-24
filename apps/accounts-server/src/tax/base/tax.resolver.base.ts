@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Tax } from "./Tax";
 import { TaxCountArgs } from "./TaxCountArgs";
 import { TaxFindManyArgs } from "./TaxFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateTaxArgs } from "./CreateTaxArgs";
 import { UpdateTaxArgs } from "./UpdateTaxArgs";
 import { DeleteTaxArgs } from "./DeleteTaxArgs";
 import { TaxService } from "../tax.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Tax)
 export class TaxResolverBase {
-  constructor(protected readonly service: TaxService) {}
+  constructor(
+    protected readonly service: TaxService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "read",
+    possession: "any",
+  })
   async _taxesMeta(
     @graphql.Args() args: TaxCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,12 +50,24 @@ export class TaxResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Tax])
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "read",
+    possession: "any",
+  })
   async taxes(@graphql.Args() args: TaxFindManyArgs): Promise<Tax[]> {
     return this.service.taxes(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Tax, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "read",
+    possession: "own",
+  })
   async tax(@graphql.Args() args: TaxFindUniqueArgs): Promise<Tax | null> {
     const result = await this.service.tax(args);
     if (result === null) {
@@ -48,7 +76,13 @@ export class TaxResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Tax)
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "create",
+    possession: "any",
+  })
   async createTax(@graphql.Args() args: CreateTaxArgs): Promise<Tax> {
     return await this.service.createTax({
       ...args,
@@ -56,7 +90,13 @@ export class TaxResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Tax)
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "update",
+    possession: "any",
+  })
   async updateTax(@graphql.Args() args: UpdateTaxArgs): Promise<Tax | null> {
     try {
       return await this.service.updateTax({
@@ -74,6 +114,11 @@ export class TaxResolverBase {
   }
 
   @graphql.Mutation(() => Tax)
+  @nestAccessControl.UseRoles({
+    resource: "Tax",
+    action: "delete",
+    possession: "any",
+  })
   async deleteTax(@graphql.Args() args: DeleteTaxArgs): Promise<Tax | null> {
     try {
       return await this.service.deleteTax(args);

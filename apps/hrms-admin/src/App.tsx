@@ -49,6 +49,10 @@ import { SelfServiceList } from "./selfService/SelfServiceList";
 import { SelfServiceCreate } from "./selfService/SelfServiceCreate";
 import { SelfServiceEdit } from "./selfService/SelfServiceEdit";
 import { SelfServiceShow } from "./selfService/SelfServiceShow";
+import { UserList } from "./user/UserList";
+import { UserCreate } from "./user/UserCreate";
+import { UserEdit } from "./user/UserEdit";
+import { UserShow } from "./user/UserShow";
 import { jwtAuthProvider } from "./auth-provider/ra-auth-jwt";
 
 const App = (): React.ReactElement => {
@@ -151,6 +155,13 @@ const App = (): React.ReactElement => {
           edit={SelfServiceEdit}
           create={SelfServiceCreate}
           show={SelfServiceShow}
+        />
+        <Resource
+          name="User"
+          list={UserList}
+          edit={UserEdit}
+          create={UserCreate}
+          show={UserShow}
         />
       </Admin>
     </div>

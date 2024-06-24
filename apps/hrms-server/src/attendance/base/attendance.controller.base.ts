@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { AttendanceService } from "../attendance.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { AttendanceCreateInput } from "./AttendanceCreateInput";
 import { Attendance } from "./Attendance";
 import { AttendanceFindManyArgs } from "./AttendanceFindManyArgs";
 import { AttendanceWhereUniqueInput } from "./AttendanceWhereUniqueInput";
 import { AttendanceUpdateInput } from "./AttendanceUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class AttendanceControllerBase {
-  constructor(protected readonly service: AttendanceService) {}
+  constructor(
+    protected readonly service: AttendanceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Attendance })
+  @nestAccessControl.UseRoles({
+    resource: "Attendance",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: AttendanceCreateInput,
+  })
   async createAttendance(
     @common.Body() data: AttendanceCreateInput
   ): Promise<Attendance> {
@@ -58,9 +79,18 @@ export class AttendanceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Attendance] })
   @ApiNestedQuery(AttendanceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Attendance",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async attendances(@common.Req() request: Request): Promise<Attendance[]> {
     const args = plainToClass(AttendanceFindManyArgs, request.query);
     return this.service.attendances({
@@ -83,9 +113,18 @@ export class AttendanceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Attendance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Attendance",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async attendance(
     @common.Param() params: AttendanceWhereUniqueInput
   ): Promise<Attendance | null> {
@@ -115,9 +154,21 @@ export class AttendanceControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Attendance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Attendance",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: AttendanceUpdateInput,
+  })
   async updateAttendance(
     @common.Param() params: AttendanceWhereUniqueInput,
     @common.Body() data: AttendanceUpdateInput
@@ -163,6 +214,14 @@ export class AttendanceControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Attendance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Attendance",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteAttendance(
     @common.Param() params: AttendanceWhereUniqueInput
   ): Promise<Attendance | null> {

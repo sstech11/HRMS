@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { LeaveService } from "../leave.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { LeaveCreateInput } from "./LeaveCreateInput";
 import { Leave } from "./Leave";
 import { LeaveFindManyArgs } from "./LeaveFindManyArgs";
 import { LeaveWhereUniqueInput } from "./LeaveWhereUniqueInput";
 import { LeaveUpdateInput } from "./LeaveUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class LeaveControllerBase {
-  constructor(protected readonly service: LeaveService) {}
+  constructor(
+    protected readonly service: LeaveService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Leave })
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: LeaveCreateInput,
+  })
   async createLeave(@common.Body() data: LeaveCreateInput): Promise<Leave> {
     return await this.service.createLeave({
       data: {
@@ -57,9 +78,18 @@ export class LeaveControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Leave] })
   @ApiNestedQuery(LeaveFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async leaves(@common.Req() request: Request): Promise<Leave[]> {
     const args = plainToClass(LeaveFindManyArgs, request.query);
     return this.service.leaves({
@@ -83,9 +113,18 @@ export class LeaveControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Leave })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async leave(
     @common.Param() params: LeaveWhereUniqueInput
   ): Promise<Leave | null> {
@@ -116,9 +155,21 @@ export class LeaveControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Leave })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: LeaveUpdateInput,
+  })
   async updateLeave(
     @common.Param() params: LeaveWhereUniqueInput,
     @common.Body() data: LeaveUpdateInput
@@ -165,6 +216,14 @@ export class LeaveControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Leave })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteLeave(
     @common.Param() params: LeaveWhereUniqueInput
   ): Promise<Leave | null> {

@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Performance } from "./Performance";
 import { PerformanceCountArgs } from "./PerformanceCountArgs";
 import { PerformanceFindManyArgs } from "./PerformanceFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdatePerformanceArgs } from "./UpdatePerformanceArgs";
 import { DeletePerformanceArgs } from "./DeletePerformanceArgs";
 import { Employee } from "../../employee/base/Employee";
 import { PerformanceService } from "../performance.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Performance)
 export class PerformanceResolverBase {
-  constructor(protected readonly service: PerformanceService) {}
+  constructor(
+    protected readonly service: PerformanceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "read",
+    possession: "any",
+  })
   async _performancesMeta(
     @graphql.Args() args: PerformanceCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,14 +51,26 @@ export class PerformanceResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Performance])
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "read",
+    possession: "any",
+  })
   async performances(
     @graphql.Args() args: PerformanceFindManyArgs
   ): Promise<Performance[]> {
     return this.service.performances(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Performance, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "read",
+    possession: "own",
+  })
   async performance(
     @graphql.Args() args: PerformanceFindUniqueArgs
   ): Promise<Performance | null> {
@@ -53,7 +81,13 @@ export class PerformanceResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Performance)
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "create",
+    possession: "any",
+  })
   async createPerformance(
     @graphql.Args() args: CreatePerformanceArgs
   ): Promise<Performance> {
@@ -71,7 +105,13 @@ export class PerformanceResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Performance)
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "update",
+    possession: "any",
+  })
   async updatePerformance(
     @graphql.Args() args: UpdatePerformanceArgs
   ): Promise<Performance | null> {
@@ -99,6 +139,11 @@ export class PerformanceResolverBase {
   }
 
   @graphql.Mutation(() => Performance)
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "delete",
+    possession: "any",
+  })
   async deletePerformance(
     @graphql.Args() args: DeletePerformanceArgs
   ): Promise<Performance | null> {
@@ -114,9 +159,15 @@ export class PerformanceResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Employee, {
     nullable: true,
     name: "employee",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "any",
   })
   async getEmployee(
     @graphql.Parent() parent: Performance

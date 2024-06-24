@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { WorkforceService } from "../workforce.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { WorkforceCreateInput } from "./WorkforceCreateInput";
 import { Workforce } from "./Workforce";
 import { WorkforceFindManyArgs } from "./WorkforceFindManyArgs";
 import { WorkforceWhereUniqueInput } from "./WorkforceWhereUniqueInput";
 import { WorkforceUpdateInput } from "./WorkforceUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class WorkforceControllerBase {
-  constructor(protected readonly service: WorkforceService) {}
+  constructor(
+    protected readonly service: WorkforceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Workforce })
+  @nestAccessControl.UseRoles({
+    resource: "Workforce",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: WorkforceCreateInput,
+  })
   async createWorkforce(
     @common.Body() data: WorkforceCreateInput
   ): Promise<Workforce> {
@@ -57,9 +78,18 @@ export class WorkforceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Workforce] })
   @ApiNestedQuery(WorkforceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Workforce",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async workforces(@common.Req() request: Request): Promise<Workforce[]> {
     const args = plainToClass(WorkforceFindManyArgs, request.query);
     return this.service.workforces({
@@ -81,9 +111,18 @@ export class WorkforceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Workforce })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Workforce",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async workforce(
     @common.Param() params: WorkforceWhereUniqueInput
   ): Promise<Workforce | null> {
@@ -112,9 +151,21 @@ export class WorkforceControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Workforce })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Workforce",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: WorkforceUpdateInput,
+  })
   async updateWorkforce(
     @common.Param() params: WorkforceWhereUniqueInput,
     @common.Body() data: WorkforceUpdateInput
@@ -159,6 +210,14 @@ export class WorkforceControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Workforce })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Workforce",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteWorkforce(
     @common.Param() params: WorkforceWhereUniqueInput
   ): Promise<Workforce | null> {

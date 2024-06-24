@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Job } from "./Job";
 import { JobCountArgs } from "./JobCountArgs";
 import { JobFindManyArgs } from "./JobFindManyArgs";
@@ -23,10 +29,20 @@ import { DeleteJobArgs } from "./DeleteJobArgs";
 import { ApplicationFindManyArgs } from "../../application/base/ApplicationFindManyArgs";
 import { Application } from "../../application/base/Application";
 import { JobService } from "../job.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Job)
 export class JobResolverBase {
-  constructor(protected readonly service: JobService) {}
+  constructor(
+    protected readonly service: JobService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "read",
+    possession: "any",
+  })
   async _jobsMeta(
     @graphql.Args() args: JobCountArgs
   ): Promise<MetaQueryPayload> {
@@ -36,12 +52,24 @@ export class JobResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Job])
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "read",
+    possession: "any",
+  })
   async jobs(@graphql.Args() args: JobFindManyArgs): Promise<Job[]> {
     return this.service.jobs(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Job, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "read",
+    possession: "own",
+  })
   async job(@graphql.Args() args: JobFindUniqueArgs): Promise<Job | null> {
     const result = await this.service.job(args);
     if (result === null) {
@@ -50,7 +78,13 @@ export class JobResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Job)
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "create",
+    possession: "any",
+  })
   async createJob(@graphql.Args() args: CreateJobArgs): Promise<Job> {
     return await this.service.createJob({
       ...args,
@@ -58,7 +92,13 @@ export class JobResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Job)
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "update",
+    possession: "any",
+  })
   async updateJob(@graphql.Args() args: UpdateJobArgs): Promise<Job | null> {
     try {
       return await this.service.updateJob({
@@ -76,6 +116,11 @@ export class JobResolverBase {
   }
 
   @graphql.Mutation(() => Job)
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "delete",
+    possession: "any",
+  })
   async deleteJob(@graphql.Args() args: DeleteJobArgs): Promise<Job | null> {
     try {
       return await this.service.deleteJob(args);
@@ -89,7 +134,13 @@ export class JobResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [Application], { name: "applications" })
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "read",
+    possession: "any",
+  })
   async findApplications(
     @graphql.Parent() parent: Job,
     @graphql.Args() args: ApplicationFindManyArgs

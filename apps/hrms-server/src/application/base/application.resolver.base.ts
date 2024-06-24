@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Application } from "./Application";
 import { ApplicationCountArgs } from "./ApplicationCountArgs";
 import { ApplicationFindManyArgs } from "./ApplicationFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateApplicationArgs } from "./UpdateApplicationArgs";
 import { DeleteApplicationArgs } from "./DeleteApplicationArgs";
 import { Job } from "../../job/base/Job";
 import { ApplicationService } from "../application.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Application)
 export class ApplicationResolverBase {
-  constructor(protected readonly service: ApplicationService) {}
+  constructor(
+    protected readonly service: ApplicationService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "read",
+    possession: "any",
+  })
   async _applicationsMeta(
     @graphql.Args() args: ApplicationCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,14 +51,26 @@ export class ApplicationResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Application])
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "read",
+    possession: "any",
+  })
   async applications(
     @graphql.Args() args: ApplicationFindManyArgs
   ): Promise<Application[]> {
     return this.service.applications(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Application, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "read",
+    possession: "own",
+  })
   async application(
     @graphql.Args() args: ApplicationFindUniqueArgs
   ): Promise<Application | null> {
@@ -53,7 +81,13 @@ export class ApplicationResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Application)
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "create",
+    possession: "any",
+  })
   async createApplication(
     @graphql.Args() args: CreateApplicationArgs
   ): Promise<Application> {
@@ -71,7 +105,13 @@ export class ApplicationResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Application)
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "update",
+    possession: "any",
+  })
   async updateApplication(
     @graphql.Args() args: UpdateApplicationArgs
   ): Promise<Application | null> {
@@ -99,6 +139,11 @@ export class ApplicationResolverBase {
   }
 
   @graphql.Mutation(() => Application)
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "delete",
+    possession: "any",
+  })
   async deleteApplication(
     @graphql.Args() args: DeleteApplicationArgs
   ): Promise<Application | null> {
@@ -114,9 +159,15 @@ export class ApplicationResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Job, {
     nullable: true,
     name: "job",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Job",
+    action: "read",
+    possession: "any",
   })
   async getJob(@graphql.Parent() parent: Application): Promise<Job | null> {
     const result = await this.service.getJob(parent.id);

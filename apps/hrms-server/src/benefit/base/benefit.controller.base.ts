@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { BenefitService } from "../benefit.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { BenefitCreateInput } from "./BenefitCreateInput";
 import { Benefit } from "./Benefit";
 import { BenefitFindManyArgs } from "./BenefitFindManyArgs";
 import { BenefitWhereUniqueInput } from "./BenefitWhereUniqueInput";
 import { BenefitUpdateInput } from "./BenefitUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class BenefitControllerBase {
-  constructor(protected readonly service: BenefitService) {}
+  constructor(
+    protected readonly service: BenefitService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Benefit })
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: BenefitCreateInput,
+  })
   async createBenefit(
     @common.Body() data: BenefitCreateInput
   ): Promise<Benefit> {
@@ -58,9 +79,18 @@ export class BenefitControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Benefit] })
   @ApiNestedQuery(BenefitFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async benefits(@common.Req() request: Request): Promise<Benefit[]> {
     const args = plainToClass(BenefitFindManyArgs, request.query);
     return this.service.benefits({
@@ -83,9 +113,18 @@ export class BenefitControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Benefit })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async benefit(
     @common.Param() params: BenefitWhereUniqueInput
   ): Promise<Benefit | null> {
@@ -115,9 +154,21 @@ export class BenefitControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Benefit })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: BenefitUpdateInput,
+  })
   async updateBenefit(
     @common.Param() params: BenefitWhereUniqueInput,
     @common.Body() data: BenefitUpdateInput
@@ -163,6 +214,14 @@ export class BenefitControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Benefit })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteBenefit(
     @common.Param() params: BenefitWhereUniqueInput
   ): Promise<Benefit | null> {

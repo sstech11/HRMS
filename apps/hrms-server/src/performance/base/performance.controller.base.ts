@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { PerformanceService } from "../performance.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { PerformanceCreateInput } from "./PerformanceCreateInput";
 import { Performance } from "./Performance";
 import { PerformanceFindManyArgs } from "./PerformanceFindManyArgs";
 import { PerformanceWhereUniqueInput } from "./PerformanceWhereUniqueInput";
 import { PerformanceUpdateInput } from "./PerformanceUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class PerformanceControllerBase {
-  constructor(protected readonly service: PerformanceService) {}
+  constructor(
+    protected readonly service: PerformanceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Performance })
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: PerformanceCreateInput,
+  })
   async createPerformance(
     @common.Body() data: PerformanceCreateInput
   ): Promise<Performance> {
@@ -58,9 +79,18 @@ export class PerformanceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Performance] })
   @ApiNestedQuery(PerformanceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async performances(@common.Req() request: Request): Promise<Performance[]> {
     const args = plainToClass(PerformanceFindManyArgs, request.query);
     return this.service.performances({
@@ -83,9 +113,18 @@ export class PerformanceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Performance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async performance(
     @common.Param() params: PerformanceWhereUniqueInput
   ): Promise<Performance | null> {
@@ -115,9 +154,21 @@ export class PerformanceControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Performance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: PerformanceUpdateInput,
+  })
   async updatePerformance(
     @common.Param() params: PerformanceWhereUniqueInput,
     @common.Body() data: PerformanceUpdateInput
@@ -163,6 +214,14 @@ export class PerformanceControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Performance })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deletePerformance(
     @common.Param() params: PerformanceWhereUniqueInput
   ): Promise<Performance | null> {

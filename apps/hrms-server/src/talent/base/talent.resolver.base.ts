@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Talent } from "./Talent";
 import { TalentCountArgs } from "./TalentCountArgs";
 import { TalentFindManyArgs } from "./TalentFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateTalentArgs } from "./UpdateTalentArgs";
 import { DeleteTalentArgs } from "./DeleteTalentArgs";
 import { Employee } from "../../employee/base/Employee";
 import { TalentService } from "../talent.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Talent)
 export class TalentResolverBase {
-  constructor(protected readonly service: TalentService) {}
+  constructor(
+    protected readonly service: TalentService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "read",
+    possession: "any",
+  })
   async _talentsMeta(
     @graphql.Args() args: TalentCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,12 +51,24 @@ export class TalentResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Talent])
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "read",
+    possession: "any",
+  })
   async talents(@graphql.Args() args: TalentFindManyArgs): Promise<Talent[]> {
     return this.service.talents(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Talent, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "read",
+    possession: "own",
+  })
   async talent(
     @graphql.Args() args: TalentFindUniqueArgs
   ): Promise<Talent | null> {
@@ -51,7 +79,13 @@ export class TalentResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Talent)
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "create",
+    possession: "any",
+  })
   async createTalent(@graphql.Args() args: CreateTalentArgs): Promise<Talent> {
     return await this.service.createTalent({
       ...args,
@@ -67,7 +101,13 @@ export class TalentResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Talent)
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "update",
+    possession: "any",
+  })
   async updateTalent(
     @graphql.Args() args: UpdateTalentArgs
   ): Promise<Talent | null> {
@@ -95,6 +135,11 @@ export class TalentResolverBase {
   }
 
   @graphql.Mutation(() => Talent)
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "delete",
+    possession: "any",
+  })
   async deleteTalent(
     @graphql.Args() args: DeleteTalentArgs
   ): Promise<Talent | null> {
@@ -110,9 +155,15 @@ export class TalentResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Employee, {
     nullable: true,
     name: "employee",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "any",
   })
   async getEmployee(
     @graphql.Parent() parent: Talent

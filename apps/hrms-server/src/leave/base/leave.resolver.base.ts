@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Leave } from "./Leave";
 import { LeaveCountArgs } from "./LeaveCountArgs";
 import { LeaveFindManyArgs } from "./LeaveFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateLeaveArgs } from "./UpdateLeaveArgs";
 import { DeleteLeaveArgs } from "./DeleteLeaveArgs";
 import { Employee } from "../../employee/base/Employee";
 import { LeaveService } from "../leave.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Leave)
 export class LeaveResolverBase {
-  constructor(protected readonly service: LeaveService) {}
+  constructor(
+    protected readonly service: LeaveService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "read",
+    possession: "any",
+  })
   async _leavesMeta(
     @graphql.Args() args: LeaveCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,12 +51,24 @@ export class LeaveResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Leave])
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "read",
+    possession: "any",
+  })
   async leaves(@graphql.Args() args: LeaveFindManyArgs): Promise<Leave[]> {
     return this.service.leaves(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Leave, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "read",
+    possession: "own",
+  })
   async leave(
     @graphql.Args() args: LeaveFindUniqueArgs
   ): Promise<Leave | null> {
@@ -51,7 +79,13 @@ export class LeaveResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Leave)
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "create",
+    possession: "any",
+  })
   async createLeave(@graphql.Args() args: CreateLeaveArgs): Promise<Leave> {
     return await this.service.createLeave({
       ...args,
@@ -67,7 +101,13 @@ export class LeaveResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Leave)
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "update",
+    possession: "any",
+  })
   async updateLeave(
     @graphql.Args() args: UpdateLeaveArgs
   ): Promise<Leave | null> {
@@ -95,6 +135,11 @@ export class LeaveResolverBase {
   }
 
   @graphql.Mutation(() => Leave)
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "delete",
+    possession: "any",
+  })
   async deleteLeave(
     @graphql.Args() args: DeleteLeaveArgs
   ): Promise<Leave | null> {
@@ -110,9 +155,15 @@ export class LeaveResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Employee, {
     nullable: true,
     name: "employee",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "any",
   })
   async getEmployee(@graphql.Parent() parent: Leave): Promise<Employee | null> {
     const result = await this.service.getEmployee(parent.id);

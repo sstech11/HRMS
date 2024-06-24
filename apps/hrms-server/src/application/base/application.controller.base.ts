@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { ApplicationService } from "../application.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { ApplicationCreateInput } from "./ApplicationCreateInput";
 import { Application } from "./Application";
 import { ApplicationFindManyArgs } from "./ApplicationFindManyArgs";
 import { ApplicationWhereUniqueInput } from "./ApplicationWhereUniqueInput";
 import { ApplicationUpdateInput } from "./ApplicationUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class ApplicationControllerBase {
-  constructor(protected readonly service: ApplicationService) {}
+  constructor(
+    protected readonly service: ApplicationService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Application })
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: ApplicationCreateInput,
+  })
   async createApplication(
     @common.Body() data: ApplicationCreateInput
   ): Promise<Application> {
@@ -58,9 +79,18 @@ export class ApplicationControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Application] })
   @ApiNestedQuery(ApplicationFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async applications(@common.Req() request: Request): Promise<Application[]> {
     const args = plainToClass(ApplicationFindManyArgs, request.query);
     return this.service.applications({
@@ -83,9 +113,18 @@ export class ApplicationControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Application })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async application(
     @common.Param() params: ApplicationWhereUniqueInput
   ): Promise<Application | null> {
@@ -115,9 +154,21 @@ export class ApplicationControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Application })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: ApplicationUpdateInput,
+  })
   async updateApplication(
     @common.Param() params: ApplicationWhereUniqueInput,
     @common.Body() data: ApplicationUpdateInput
@@ -163,6 +214,14 @@ export class ApplicationControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Application })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Application",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteApplication(
     @common.Param() params: ApplicationWhereUniqueInput
   ): Promise<Application | null> {

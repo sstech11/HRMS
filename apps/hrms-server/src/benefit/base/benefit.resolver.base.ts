@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Benefit } from "./Benefit";
 import { BenefitCountArgs } from "./BenefitCountArgs";
 import { BenefitFindManyArgs } from "./BenefitFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateBenefitArgs } from "./UpdateBenefitArgs";
 import { DeleteBenefitArgs } from "./DeleteBenefitArgs";
 import { Employee } from "../../employee/base/Employee";
 import { BenefitService } from "../benefit.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Benefit)
 export class BenefitResolverBase {
-  constructor(protected readonly service: BenefitService) {}
+  constructor(
+    protected readonly service: BenefitService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "read",
+    possession: "any",
+  })
   async _benefitsMeta(
     @graphql.Args() args: BenefitCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,14 +51,26 @@ export class BenefitResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Benefit])
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "read",
+    possession: "any",
+  })
   async benefits(
     @graphql.Args() args: BenefitFindManyArgs
   ): Promise<Benefit[]> {
     return this.service.benefits(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Benefit, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "read",
+    possession: "own",
+  })
   async benefit(
     @graphql.Args() args: BenefitFindUniqueArgs
   ): Promise<Benefit | null> {
@@ -53,7 +81,13 @@ export class BenefitResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Benefit)
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "create",
+    possession: "any",
+  })
   async createBenefit(
     @graphql.Args() args: CreateBenefitArgs
   ): Promise<Benefit> {
@@ -71,7 +105,13 @@ export class BenefitResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Benefit)
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "update",
+    possession: "any",
+  })
   async updateBenefit(
     @graphql.Args() args: UpdateBenefitArgs
   ): Promise<Benefit | null> {
@@ -99,6 +139,11 @@ export class BenefitResolverBase {
   }
 
   @graphql.Mutation(() => Benefit)
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "delete",
+    possession: "any",
+  })
   async deleteBenefit(
     @graphql.Args() args: DeleteBenefitArgs
   ): Promise<Benefit | null> {
@@ -114,9 +159,15 @@ export class BenefitResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Employee, {
     nullable: true,
     name: "employee",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "any",
   })
   async getEmployee(
     @graphql.Parent() parent: Benefit

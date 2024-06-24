@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { SelfService } from "./SelfService";
 import { SelfServiceCountArgs } from "./SelfServiceCountArgs";
 import { SelfServiceFindManyArgs } from "./SelfServiceFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateSelfServiceArgs } from "./UpdateSelfServiceArgs";
 import { DeleteSelfServiceArgs } from "./DeleteSelfServiceArgs";
 import { Employee } from "../../employee/base/Employee";
 import { SelfServiceService } from "../selfService.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => SelfService)
 export class SelfServiceResolverBase {
-  constructor(protected readonly service: SelfServiceService) {}
+  constructor(
+    protected readonly service: SelfServiceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "read",
+    possession: "any",
+  })
   async _selfServicesMeta(
     @graphql.Args() args: SelfServiceCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,14 +51,26 @@ export class SelfServiceResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [SelfService])
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "read",
+    possession: "any",
+  })
   async selfServices(
     @graphql.Args() args: SelfServiceFindManyArgs
   ): Promise<SelfService[]> {
     return this.service.selfServices(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => SelfService, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "read",
+    possession: "own",
+  })
   async selfService(
     @graphql.Args() args: SelfServiceFindUniqueArgs
   ): Promise<SelfService | null> {
@@ -53,7 +81,13 @@ export class SelfServiceResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => SelfService)
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "create",
+    possession: "any",
+  })
   async createSelfService(
     @graphql.Args() args: CreateSelfServiceArgs
   ): Promise<SelfService> {
@@ -71,7 +105,13 @@ export class SelfServiceResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => SelfService)
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "update",
+    possession: "any",
+  })
   async updateSelfService(
     @graphql.Args() args: UpdateSelfServiceArgs
   ): Promise<SelfService | null> {
@@ -99,6 +139,11 @@ export class SelfServiceResolverBase {
   }
 
   @graphql.Mutation(() => SelfService)
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "delete",
+    possession: "any",
+  })
   async deleteSelfService(
     @graphql.Args() args: DeleteSelfServiceArgs
   ): Promise<SelfService | null> {
@@ -114,9 +159,15 @@ export class SelfServiceResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Employee, {
     nullable: true,
     name: "employee",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "any",
   })
   async getEmployee(
     @graphql.Parent() parent: SelfService

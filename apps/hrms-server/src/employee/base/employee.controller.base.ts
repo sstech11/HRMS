@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { EmployeeService } from "../employee.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { EmployeeCreateInput } from "./EmployeeCreateInput";
 import { Employee } from "./Employee";
 import { EmployeeFindManyArgs } from "./EmployeeFindManyArgs";
@@ -47,10 +51,27 @@ import { WorkforceFindManyArgs } from "../../workforce/base/WorkforceFindManyArg
 import { Workforce } from "../../workforce/base/Workforce";
 import { WorkforceWhereUniqueInput } from "../../workforce/base/WorkforceWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class EmployeeControllerBase {
-  constructor(protected readonly service: EmployeeService) {}
+  constructor(
+    protected readonly service: EmployeeService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Employee })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: EmployeeCreateInput,
+  })
   async createEmployee(
     @common.Body() data: EmployeeCreateInput
   ): Promise<Employee> {
@@ -70,9 +91,18 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Employee] })
   @ApiNestedQuery(EmployeeFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async employees(@common.Req() request: Request): Promise<Employee[]> {
     const args = plainToClass(EmployeeFindManyArgs, request.query);
     return this.service.employees({
@@ -91,9 +121,18 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Employee })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async employee(
     @common.Param() params: EmployeeWhereUniqueInput
   ): Promise<Employee | null> {
@@ -119,9 +158,21 @@ export class EmployeeControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Employee })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: EmployeeUpdateInput,
+  })
   async updateEmployee(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() data: EmployeeUpdateInput
@@ -155,6 +206,14 @@ export class EmployeeControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Employee })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteEmployee(
     @common.Param() params: EmployeeWhereUniqueInput
   ): Promise<Employee | null> {
@@ -183,8 +242,14 @@ export class EmployeeControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/attendances")
   @ApiNestedQuery(AttendanceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Attendance",
+    action: "read",
+    possession: "any",
+  })
   async findAttendances(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -217,6 +282,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/attendances")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectAttendances(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: AttendanceWhereUniqueInput[]
@@ -234,6 +304,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/attendances")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updateAttendances(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: AttendanceWhereUniqueInput[]
@@ -251,6 +326,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/attendances")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectAttendances(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: AttendanceWhereUniqueInput[]
@@ -267,8 +347,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/benefits")
   @ApiNestedQuery(BenefitFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Benefit",
+    action: "read",
+    possession: "any",
+  })
   async findBenefits(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -301,6 +387,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/benefits")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectBenefits(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: BenefitWhereUniqueInput[]
@@ -318,6 +409,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/benefits")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updateBenefits(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: BenefitWhereUniqueInput[]
@@ -335,6 +431,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/benefits")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectBenefits(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: BenefitWhereUniqueInput[]
@@ -351,8 +452,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/leaves")
   @ApiNestedQuery(LeaveFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Leave",
+    action: "read",
+    possession: "any",
+  })
   async findLeaves(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -386,6 +493,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/leaves")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectLeaves(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: LeaveWhereUniqueInput[]
@@ -403,6 +515,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/leaves")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updateLeaves(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: LeaveWhereUniqueInput[]
@@ -420,6 +537,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/leaves")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectLeaves(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: LeaveWhereUniqueInput[]
@@ -436,8 +558,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/payrolls")
   @ApiNestedQuery(PayrollFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Payroll",
+    action: "read",
+    possession: "any",
+  })
   async findPayrolls(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -470,6 +598,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/payrolls")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectPayrolls(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: PayrollWhereUniqueInput[]
@@ -487,6 +620,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/payrolls")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updatePayrolls(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: PayrollWhereUniqueInput[]
@@ -504,6 +642,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/payrolls")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectPayrolls(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: PayrollWhereUniqueInput[]
@@ -520,8 +663,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/performances")
   @ApiNestedQuery(PerformanceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Performance",
+    action: "read",
+    possession: "any",
+  })
   async findPerformances(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -554,6 +703,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/performances")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectPerformances(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: PerformanceWhereUniqueInput[]
@@ -571,6 +725,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/performances")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updatePerformances(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: PerformanceWhereUniqueInput[]
@@ -588,6 +747,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/performances")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectPerformances(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: PerformanceWhereUniqueInput[]
@@ -604,8 +768,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/selfServices")
   @ApiNestedQuery(SelfServiceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "SelfService",
+    action: "read",
+    possession: "any",
+  })
   async findSelfServices(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -636,6 +806,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/selfServices")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectSelfServices(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: SelfServiceWhereUniqueInput[]
@@ -653,6 +828,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/selfServices")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updateSelfServices(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: SelfServiceWhereUniqueInput[]
@@ -670,6 +850,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/selfServices")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectSelfServices(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: SelfServiceWhereUniqueInput[]
@@ -686,8 +871,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/talents")
   @ApiNestedQuery(TalentFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Talent",
+    action: "read",
+    possession: "any",
+  })
   async findTalents(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -720,6 +911,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/talents")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectTalents(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: TalentWhereUniqueInput[]
@@ -737,6 +933,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/talents")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updateTalents(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: TalentWhereUniqueInput[]
@@ -754,6 +955,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/talents")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectTalents(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: TalentWhereUniqueInput[]
@@ -770,8 +976,14 @@ export class EmployeeControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/workforces")
   @ApiNestedQuery(WorkforceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Workforce",
+    action: "read",
+    possession: "any",
+  })
   async findWorkforces(
     @common.Req() request: Request,
     @common.Param() params: EmployeeWhereUniqueInput
@@ -803,6 +1015,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Post("/:id/workforces")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async connectWorkforces(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: WorkforceWhereUniqueInput[]
@@ -820,6 +1037,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Patch("/:id/workforces")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async updateWorkforces(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: WorkforceWhereUniqueInput[]
@@ -837,6 +1059,11 @@ export class EmployeeControllerBase {
   }
 
   @common.Delete("/:id/workforces")
+  @nestAccessControl.UseRoles({
+    resource: "Employee",
+    action: "update",
+    possession: "any",
+  })
   async disconnectWorkforces(
     @common.Param() params: EmployeeWhereUniqueInput,
     @common.Body() body: WorkforceWhereUniqueInput[]

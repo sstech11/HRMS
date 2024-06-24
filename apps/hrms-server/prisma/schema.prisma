@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DB_URL")
 }
 
@@ -15,7 +15,7 @@ model Employee {
   email        String?
   firstName    String?
   hireDate     DateTime?
-  id           String        @id @default(cuid())
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
   lastName     String?
   leaves       Leave[]
   payrolls     Payroll[]
@@ -32,7 +32,7 @@ model Job {
   createdAt    DateTime      @default(now())
   department   String?
   description  String?
-  id           String        @id @default(cuid())
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
   location     String?
   title        String?
   updatedAt    DateTime      @updatedAt
@@ -42,9 +42,9 @@ model Application {
   applicantName String?
   createdAt     DateTime               @default(now())
   email         String?
-  id            String                 @id @default(cuid())
+  id            String                 @id @default(auto()) @map("_id") @db.ObjectId
   job           Job?                   @relation(fields: [jobId], references: [id])
-  jobId         String?
+  jobId         String?                @db.ObjectId
   status        EnumApplicationStatus?
   updatedAt     DateTime               @updatedAt
 }
@@ -53,8 +53,8 @@ model Workforce {
   budget     Float?
   createdAt  DateTime  @default(now())
   employee   Employee? @relation(fields: [employeeId], references: [id])
-  employeeId String?
-  id         String    @id @default(cuid())
+  employeeId String?   @db.ObjectId
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   schedule   Json?
   updatedAt  DateTime  @updatedAt
 }
@@ -63,8 +63,8 @@ model Performance {
   comments   String?
   createdAt  DateTime  @default(now())
   employee   Employee? @relation(fields: [employeeId], references: [id])
-  employeeId String?
-  id         String    @id @default(cuid())
+  employeeId String?   @db.ObjectId
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   reviewDate DateTime?
   score      Float?
   updatedAt  DateTime  @updatedAt
@@ -74,8 +74,8 @@ model Payroll {
   amount     Float?
   createdAt  DateTime           @default(now())
   employee   Employee?          @relation(fields: [employeeId], references: [id])
-  employeeId String?
-  id         String             @id @default(cuid())
+  employeeId String?            @db.ObjectId
+  id         String             @id @default(auto()) @map("_id") @db.ObjectId
   payDate    DateTime?
   status     EnumPayrollStatus?
   updatedAt  DateTime           @updatedAt
@@ -85,9 +85,9 @@ model Benefit {
   benefitType EnumBenefitBenefitType?
   createdAt   DateTime                @default(now())
   employee    Employee?               @relation(fields: [employeeId], references: [id])
-  employeeId  String?
+  employeeId  String?                 @db.ObjectId
   endDate     DateTime?
-  id          String                  @id @default(cuid())
+  id          String                  @id @default(auto()) @map("_id") @db.ObjectId
   startDate   DateTime?
   updatedAt   DateTime                @updatedAt
 }
@@ -95,9 +95,9 @@ model Benefit {
 model Leave {
   createdAt  DateTime            @default(now())
   employee   Employee?           @relation(fields: [employeeId], references: [id])
-  employeeId String?
+  employeeId String?             @db.ObjectId
   endDate    DateTime?
-  id         String              @id @default(cuid())
+  id         String              @id @default(auto()) @map("_id") @db.ObjectId
   leaveType  EnumLeaveLeaveType?
   startDate  DateTime?
   status     EnumLeaveStatus?
@@ -107,9 +107,9 @@ model Leave {
 model Talent {
   createdAt  DateTime             @default(now())
   employee   Employee?            @relation(fields: [employeeId], references: [id])
-  employeeId String?
+  employeeId String?              @db.ObjectId
   goal       String?
-  id         String               @id @default(cuid())
+  id         String               @id @default(auto()) @map("_id") @db.ObjectId
   position   String?
   potential  EnumTalentPotential?
   updatedAt  DateTime             @updatedAt
@@ -121,18 +121,30 @@ model Attendance {
   createdAt    DateTime  @default(now())
   date         DateTime?
   employee     Employee? @relation(fields: [employeeId], references: [id])
-  employeeId   String?
-  id           String    @id @default(cuid())
+  employeeId   String?   @db.ObjectId
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
   updatedAt    DateTime  @updatedAt
 }
 
 model SelfService {
   createdAt     DateTime  @default(now())
   employee      Employee? @relation(fields: [employeeId], references: [id])
-  employeeId    String?
+  employeeId    String?   @db.ObjectId
   functionality String?
-  id            String    @id @default(cuid())
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
   updatedAt     DateTime  @updatedAt
+}
+
+model User {
+  createdAt DateTime @default(now())
+  email     String?  @unique
+  firstName String?
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  lastName  String?
+  password  String
+  roles     Json
+  updatedAt DateTime @updatedAt
+  username  String   @unique
 }
 
 enum EnumApplicationStatus {

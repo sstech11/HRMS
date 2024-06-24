@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { BudgetService } from "../budget.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { BudgetCreateInput } from "./BudgetCreateInput";
 import { Budget } from "./Budget";
 import { BudgetFindManyArgs } from "./BudgetFindManyArgs";
 import { BudgetWhereUniqueInput } from "./BudgetWhereUniqueInput";
 import { BudgetUpdateInput } from "./BudgetUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class BudgetControllerBase {
-  constructor(protected readonly service: BudgetService) {}
+  constructor(
+    protected readonly service: BudgetService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Budget })
+  @nestAccessControl.UseRoles({
+    resource: "Budget",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: BudgetCreateInput,
+  })
   async createBudget(@common.Body() data: BudgetCreateInput): Promise<Budget> {
     return await this.service.createBudget({
       data: data,
@@ -42,9 +63,18 @@ export class BudgetControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Budget] })
   @ApiNestedQuery(BudgetFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Budget",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async budgets(@common.Req() request: Request): Promise<Budget[]> {
     const args = plainToClass(BudgetFindManyArgs, request.query);
     return this.service.budgets({
@@ -61,9 +91,18 @@ export class BudgetControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Budget })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Budget",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async budget(
     @common.Param() params: BudgetWhereUniqueInput
   ): Promise<Budget | null> {
@@ -87,9 +126,21 @@ export class BudgetControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Budget })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Budget",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: BudgetUpdateInput,
+  })
   async updateBudget(
     @common.Param() params: BudgetWhereUniqueInput,
     @common.Body() data: BudgetUpdateInput
@@ -121,6 +172,14 @@ export class BudgetControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Budget })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Budget",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteBudget(
     @common.Param() params: BudgetWhereUniqueInput
   ): Promise<Budget | null> {

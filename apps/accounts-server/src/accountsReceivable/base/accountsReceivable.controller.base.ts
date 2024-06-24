@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { AccountsReceivableService } from "../accountsReceivable.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { AccountsReceivableCreateInput } from "./AccountsReceivableCreateInput";
 import { AccountsReceivable } from "./AccountsReceivable";
 import { AccountsReceivableFindManyArgs } from "./AccountsReceivableFindManyArgs";
 import { AccountsReceivableWhereUniqueInput } from "./AccountsReceivableWhereUniqueInput";
 import { AccountsReceivableUpdateInput } from "./AccountsReceivableUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class AccountsReceivableControllerBase {
-  constructor(protected readonly service: AccountsReceivableService) {}
+  constructor(
+    protected readonly service: AccountsReceivableService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: AccountsReceivable })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: AccountsReceivableCreateInput,
+  })
   async createAccountsReceivable(
     @common.Body() data: AccountsReceivableCreateInput
   ): Promise<AccountsReceivable> {
@@ -44,9 +65,18 @@ export class AccountsReceivableControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [AccountsReceivable] })
   @ApiNestedQuery(AccountsReceivableFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async accountsReceivables(
     @common.Req() request: Request
   ): Promise<AccountsReceivable[]> {
@@ -65,9 +95,18 @@ export class AccountsReceivableControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: AccountsReceivable })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async accountsReceivable(
     @common.Param() params: AccountsReceivableWhereUniqueInput
   ): Promise<AccountsReceivable | null> {
@@ -91,9 +130,21 @@ export class AccountsReceivableControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: AccountsReceivable })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: AccountsReceivableUpdateInput,
+  })
   async updateAccountsReceivable(
     @common.Param() params: AccountsReceivableWhereUniqueInput,
     @common.Body() data: AccountsReceivableUpdateInput
@@ -125,6 +176,14 @@ export class AccountsReceivableControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: AccountsReceivable })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsReceivable",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteAccountsReceivable(
     @common.Param() params: AccountsReceivableWhereUniqueInput
   ): Promise<AccountsReceivable | null> {

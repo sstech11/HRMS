@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { AccountsPayable } from "./AccountsPayable";
 import { AccountsPayableCountArgs } from "./AccountsPayableCountArgs";
 import { AccountsPayableFindManyArgs } from "./AccountsPayableFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateAccountsPayableArgs } from "./CreateAccountsPayableArgs";
 import { UpdateAccountsPayableArgs } from "./UpdateAccountsPayableArgs";
 import { DeleteAccountsPayableArgs } from "./DeleteAccountsPayableArgs";
 import { AccountsPayableService } from "../accountsPayable.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => AccountsPayable)
 export class AccountsPayableResolverBase {
-  constructor(protected readonly service: AccountsPayableService) {}
+  constructor(
+    protected readonly service: AccountsPayableService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "read",
+    possession: "any",
+  })
   async _accountsPayablesMeta(
     @graphql.Args() args: AccountsPayableCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class AccountsPayableResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [AccountsPayable])
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "read",
+    possession: "any",
+  })
   async accountsPayables(
     @graphql.Args() args: AccountsPayableFindManyArgs
   ): Promise<AccountsPayable[]> {
     return this.service.accountsPayables(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => AccountsPayable, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "read",
+    possession: "own",
+  })
   async accountsPayable(
     @graphql.Args() args: AccountsPayableFindUniqueArgs
   ): Promise<AccountsPayable | null> {
@@ -52,7 +80,13 @@ export class AccountsPayableResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => AccountsPayable)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "create",
+    possession: "any",
+  })
   async createAccountsPayable(
     @graphql.Args() args: CreateAccountsPayableArgs
   ): Promise<AccountsPayable> {
@@ -62,7 +96,13 @@ export class AccountsPayableResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => AccountsPayable)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "update",
+    possession: "any",
+  })
   async updateAccountsPayable(
     @graphql.Args() args: UpdateAccountsPayableArgs
   ): Promise<AccountsPayable | null> {
@@ -82,6 +122,11 @@ export class AccountsPayableResolverBase {
   }
 
   @graphql.Mutation(() => AccountsPayable)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "delete",
+    possession: "any",
+  })
   async deleteAccountsPayable(
     @graphql.Args() args: DeleteAccountsPayableArgs
   ): Promise<AccountsPayable | null> {

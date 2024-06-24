@@ -41,6 +41,10 @@ import { FinancialReportList } from "./financialReport/FinancialReportList";
 import { FinancialReportCreate } from "./financialReport/FinancialReportCreate";
 import { FinancialReportEdit } from "./financialReport/FinancialReportEdit";
 import { FinancialReportShow } from "./financialReport/FinancialReportShow";
+import { UserList } from "./user/UserList";
+import { UserCreate } from "./user/UserCreate";
+import { UserEdit } from "./user/UserEdit";
+import { UserShow } from "./user/UserShow";
 import { jwtAuthProvider } from "./auth-provider/ra-auth-jwt";
 
 const App = (): React.ReactElement => {
@@ -129,6 +133,13 @@ const App = (): React.ReactElement => {
           edit={FinancialReportEdit}
           create={FinancialReportCreate}
           show={FinancialReportShow}
+        />
+        <Resource
+          name="User"
+          list={UserList}
+          edit={UserEdit}
+          create={UserCreate}
+          show={UserShow}
         />
       </Admin>
     </div>

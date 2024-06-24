@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { AccountsPayableService } from "../accountsPayable.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { AccountsPayableCreateInput } from "./AccountsPayableCreateInput";
 import { AccountsPayable } from "./AccountsPayable";
 import { AccountsPayableFindManyArgs } from "./AccountsPayableFindManyArgs";
 import { AccountsPayableWhereUniqueInput } from "./AccountsPayableWhereUniqueInput";
 import { AccountsPayableUpdateInput } from "./AccountsPayableUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class AccountsPayableControllerBase {
-  constructor(protected readonly service: AccountsPayableService) {}
+  constructor(
+    protected readonly service: AccountsPayableService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: AccountsPayable })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: AccountsPayableCreateInput,
+  })
   async createAccountsPayable(
     @common.Body() data: AccountsPayableCreateInput
   ): Promise<AccountsPayable> {
@@ -44,9 +65,18 @@ export class AccountsPayableControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [AccountsPayable] })
   @ApiNestedQuery(AccountsPayableFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async accountsPayables(
     @common.Req() request: Request
   ): Promise<AccountsPayable[]> {
@@ -65,9 +95,18 @@ export class AccountsPayableControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: AccountsPayable })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async accountsPayable(
     @common.Param() params: AccountsPayableWhereUniqueInput
   ): Promise<AccountsPayable | null> {
@@ -91,9 +130,21 @@ export class AccountsPayableControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: AccountsPayable })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: AccountsPayableUpdateInput,
+  })
   async updateAccountsPayable(
     @common.Param() params: AccountsPayableWhereUniqueInput,
     @common.Body() data: AccountsPayableUpdateInput
@@ -125,6 +176,14 @@ export class AccountsPayableControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: AccountsPayable })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "AccountsPayable",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteAccountsPayable(
     @common.Param() params: AccountsPayableWhereUniqueInput
   ): Promise<AccountsPayable | null> {

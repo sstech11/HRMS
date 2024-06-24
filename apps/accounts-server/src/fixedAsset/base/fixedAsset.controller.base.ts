@@ -16,17 +16,38 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { FixedAssetService } from "../fixedAsset.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { FixedAssetCreateInput } from "./FixedAssetCreateInput";
 import { FixedAsset } from "./FixedAsset";
 import { FixedAssetFindManyArgs } from "./FixedAssetFindManyArgs";
 import { FixedAssetWhereUniqueInput } from "./FixedAssetWhereUniqueInput";
 import { FixedAssetUpdateInput } from "./FixedAssetUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class FixedAssetControllerBase {
-  constructor(protected readonly service: FixedAssetService) {}
+  constructor(
+    protected readonly service: FixedAssetService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: FixedAsset })
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: FixedAssetCreateInput,
+  })
   async createFixedAsset(
     @common.Body() data: FixedAssetCreateInput
   ): Promise<FixedAsset> {
@@ -43,9 +64,18 @@ export class FixedAssetControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [FixedAsset] })
   @ApiNestedQuery(FixedAssetFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async fixedAssets(@common.Req() request: Request): Promise<FixedAsset[]> {
     const args = plainToClass(FixedAssetFindManyArgs, request.query);
     return this.service.fixedAssets({
@@ -61,9 +91,18 @@ export class FixedAssetControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: FixedAsset })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async fixedAsset(
     @common.Param() params: FixedAssetWhereUniqueInput
   ): Promise<FixedAsset | null> {
@@ -86,9 +125,21 @@ export class FixedAssetControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: FixedAsset })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
+  @swagger.ApiBody({
+    type: FixedAssetUpdateInput,
+  })
   async updateFixedAsset(
     @common.Param() params: FixedAssetWhereUniqueInput,
     @common.Body() data: FixedAssetUpdateInput
@@ -119,6 +170,14 @@ export class FixedAssetControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: FixedAsset })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteFixedAsset(
     @common.Param() params: FixedAssetWhereUniqueInput
   ): Promise<FixedAsset | null> {

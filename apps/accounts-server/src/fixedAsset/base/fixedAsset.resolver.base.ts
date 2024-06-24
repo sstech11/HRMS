@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { FixedAsset } from "./FixedAsset";
 import { FixedAssetCountArgs } from "./FixedAssetCountArgs";
 import { FixedAssetFindManyArgs } from "./FixedAssetFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateFixedAssetArgs } from "./CreateFixedAssetArgs";
 import { UpdateFixedAssetArgs } from "./UpdateFixedAssetArgs";
 import { DeleteFixedAssetArgs } from "./DeleteFixedAssetArgs";
 import { FixedAssetService } from "../fixedAsset.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => FixedAsset)
 export class FixedAssetResolverBase {
-  constructor(protected readonly service: FixedAssetService) {}
+  constructor(
+    protected readonly service: FixedAssetService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "read",
+    possession: "any",
+  })
   async _fixedAssetsMeta(
     @graphql.Args() args: FixedAssetCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class FixedAssetResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [FixedAsset])
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "read",
+    possession: "any",
+  })
   async fixedAssets(
     @graphql.Args() args: FixedAssetFindManyArgs
   ): Promise<FixedAsset[]> {
     return this.service.fixedAssets(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => FixedAsset, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "read",
+    possession: "own",
+  })
   async fixedAsset(
     @graphql.Args() args: FixedAssetFindUniqueArgs
   ): Promise<FixedAsset | null> {
@@ -52,7 +80,13 @@ export class FixedAssetResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => FixedAsset)
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "create",
+    possession: "any",
+  })
   async createFixedAsset(
     @graphql.Args() args: CreateFixedAssetArgs
   ): Promise<FixedAsset> {
@@ -62,7 +96,13 @@ export class FixedAssetResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => FixedAsset)
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "update",
+    possession: "any",
+  })
   async updateFixedAsset(
     @graphql.Args() args: UpdateFixedAssetArgs
   ): Promise<FixedAsset | null> {
@@ -82,6 +122,11 @@ export class FixedAssetResolverBase {
   }
 
   @graphql.Mutation(() => FixedAsset)
+  @nestAccessControl.UseRoles({
+    resource: "FixedAsset",
+    action: "delete",
+    possession: "any",
+  })
   async deleteFixedAsset(
     @graphql.Args() args: DeleteFixedAssetArgs
   ): Promise<FixedAsset | null> {
